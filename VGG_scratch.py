@@ -10,11 +10,11 @@ from skimage.io import imread
 import skimage
 base_skin_dir = os.path.join('Data/')
 
-tile_df = pd.read_csv(os.path.join(base_skin_dir, 'hmnist_28_28_L.csv'))
-input_images = np.reshape(tile_df.values[:,:-1],[-1,28,28,1])
+tile_df = pd.read_csv(os.path.join(base_skin_dir, 'hmnist_8_8_L.csv'))
+input_images = np.reshape(tile_df.values[:,:-1],[-1,8,8,1])
 labels = tile_df.values[:,-1]
 
-images = tf.placeholder(tf.float32, [None, 28, 28, 1])
+images = tf.placeholder(tf.float32, [None, 8, 8, 1])
 y_true = tf.placeholder(tf.int32, [None])
 y_true_one_hot = tf.one_hot(y_true, depth=7)
 
