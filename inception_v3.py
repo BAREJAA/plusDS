@@ -25,11 +25,18 @@ else:
 slim = tf.contrib.slim
 
 # Set Params
-MAX_EPOCH = 30000
+MAX_EPOCH = 50000
 NUM_CLASSES = 7
 NUM_IMG_FROM_EACH_CLASS = 9
 input_size = NUM_IMG_FROM_EACH_CLASS * NUM_CLASSES
-VALIDATION_INTERVAL = 1000
+VALIDATION_INTERVAL = 500
+START_LR = 1e-04
+DECAY_STEP = 10000 / 63 * 2.5
+DECAY_RATE = 0.94
+LOG_DIR = "./saved_model/Inception_" + str(START_LR) + "_" + str(DECAY_STEP) + "_" + str(DECAY_RATE)
+
+session_config = tf.ConfigProto(log_device_placement=False)
+session_config.gpu_options.allow_growth = True
 
 session_config = tf.ConfigProto(log_device_placement=False)
 session_config.gpu_options.allow_growth = True
@@ -89,12 +96,15 @@ with g.as_default():
     total_loss = tf.losses.get_total_loss()
     loss_val = tf.losses.softmax_cross_entropy(label_val, logits_val, loss_collection="validation")
     
-    learning_rate = tf.train.exponential_decay(1e-04, tf.train.get_or_create_global_step(), 10000 / 63 * 2.5 , 0.94)
+    learning_rate = tf.train.exponential_decay(START_LR, tf.train.get_or_create_global_step(), DECAY_STEP, DECAY_RATE)
     opt = tf.train.GradientDescentOptimizer(learning_rate)
     train_tensor = slim.learning.create_train_op(total_loss, optimizer=opt)
     # Creat Summary
     slim.summaries.add_scalar_summary(total_loss, 'cross_entropy_loss', 'losses')
     slim.summaries.add_scalar_summary(learning_rate, 'learning_rate', 'training')
+    slim.summaries.add_scalar_summary(loss_val, 'validation_loss', 'losses')
+    slim.summaries.add_scalar_summary(loss_val-total_loss, 'validation_delta', 'losses')
+    
 
 def train_step_fn(sess, train_op, global_step, train_step_kwargs):
     """
@@ -125,12 +135,10 @@ def train_step_fn(sess, train_op, global_step, train_step_kwargs):
         
         sess.run([img_assign_val,label_assign_val,logits_val], feed_dict={img_holder_val:input_images_val, label_holder_val:labels_val})
         validiate_loss = sess.run(loss_val)
+
         
-        slim.summaries.add_scalar_summary(loss_val, 'validation_loss', 'losses')
-        slim.summaries.add_scalar_summary(loss_val-total_loss, 'validation_delta', 'losses')
-        
-    print(">> global step {}:    train={}   validation={}  delta={}".format(global_step.eval(session=sess), 
-                        total_loss, validiate_loss, validiate_loss-total_loss))
+        print(">> global step {}:    train={}   validation={}  delta={}".format(global_step.eval(session=sess), 
+                            total_loss, validiate_loss, validiate_loss-total_loss))
 
 
     return [total_loss, should_stop]
@@ -154,15 +162,16 @@ with g.as_default():
 
     slim.learning.train(
         train_tensor,
-        "./saved_model/",
-        log_every_n_steps=300,
+        LOG_DIR,
+        log_every_n_steps=1,
         number_of_steps=MAX_EPOCH,
         graph=g,
-        save_summaries_secs=300,
-        save_interval_secs=600,
+        save_summaries_secs=60,
+        save_interval_secs=300,
         init_fn=get_checkpoint_init_fn(),
         global_step=tf.train.get_global_step(),
         train_step_fn = train_step_fn,
         session_config=session_config,
         init_feed_dict = {img_holder:input_images, label_holder:labels, img_holder_val: input_images_val, label_holder_val: labels_val})
 
+    
