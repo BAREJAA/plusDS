@@ -156,7 +156,7 @@ BATCH_SIZE = 10
 CROSS_VALID_SIZE = 1000
 SAVE_PATH = "./saved_model/vgg.ckpt"
 
-config=tf.ConfigProto(log_device_placement=True)
+config=tf.ConfigProto(log_device_placement=False)
 config.gpu_options.allow_growth = True
 
 with tf.Session(config=config) as sess:
